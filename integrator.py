@@ -8,8 +8,8 @@ notion_url = "https://api.notion.com/v1"
 
 lc_username = "azanulhaque"
 lc_recent_subs_limit = 15
-notion_token = "secret_WnBfMupLoXu0OOJhrV5YmZQzYRRT9xAakj1pNgh12Qy"
-db_id = "d8cb573a316140ee9ed353de205d5fc4"
+notion_token = ""
+db_id = ""
 
 notion_headers = {
         "Accept": "application/json",
