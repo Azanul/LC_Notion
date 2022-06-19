@@ -6,7 +6,7 @@ from deta import Deta
 
 deta = Deta('c02ltoqe_PKjs9NwjR7e2B28SaGPQk3aMvime1smm')
 db = deta.Base('simpleDB')
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='public')
 
 @app.route("/")
 def hello_world():
@@ -34,10 +34,6 @@ def create_user():
 
 # This is your test secret API key.
 stripe.api_key = ''
-
-app = Flask(__name__,
-            static_url_path='',
-            static_folder='public')
 
 YOUR_DOMAIN = 'http://localhost:5000'
 
