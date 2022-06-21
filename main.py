@@ -2,9 +2,16 @@ import os
 import stripe
 from flask import Flask, render_template, redirect, jsonify, json, request, current_app
 from deta import Deta
+from dotenv import load_dotenv, find_dotenv
 
+load_dotenv(find_dotenv('.test.env'))
 
-deta = Deta('c02ltoqe_PKjs9NwjR7e2B28SaGPQk3aMvime1smm')
+deta_project_key = os.getenv('DETA_KEY')
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+YOUR_DOMAIN = os.getenv('DOMAIN')
+
+deta = Deta(deta_project_key)
 db = deta.Base('simpleDB')
 app = Flask(__name__, static_url_path='', static_folder='public')
 
@@ -30,12 +37,17 @@ def create_user():
 
     return jsonify(user, 201)
 
+@app.route('/checkout', methods=["GET"])
+def checkout():
+    return render_template("checkout.html", PRICE_LOOKUP_KEY="monthly-lc_notion")
 
+@app.route('/cancel', methods=["GET"])
+def cancel():
+    return render_template("cancel.html")
 
-# This is your test secret API key.
-stripe.api_key = ''
-
-YOUR_DOMAIN = 'http://localhost:5000'
+@app.route('/success', methods=["GET"])
+def success():
+    return render_template("success.html")
 
 
 @app.route('/create-checkout-session', methods=['POST'])
@@ -55,8 +67,8 @@ def create_checkout_session():
             ],
             mode='subscription',
             success_url=YOUR_DOMAIN +
-            '/success.html?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=YOUR_DOMAIN + '/cancel.html',
+            '/success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=YOUR_DOMAIN + '/cancel',
         )
         return redirect(checkout_session.url, code=303)
     except Exception as e:
