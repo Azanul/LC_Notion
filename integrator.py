@@ -10,7 +10,7 @@ next_repitition = {"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "
 lc_url = 'https://leetcode.com/graphql/'
 notion_url = "https://api.notion.com/v1"
 
-lc_username = "azanulhaque"
+lc_username = os.getenv('lc_username')
 lc_recent_subs_limit = 15
 notion_token = os.getenv('personal_notion_token')
 db_id = os.getenv('personal_db_id')
