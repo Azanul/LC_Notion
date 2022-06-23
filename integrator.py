@@ -1,6 +1,10 @@
+import os
 import requests
 import json
 from datetime import datetime
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv('.test.env'))
 
 next_repitition = {"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
 lc_url = 'https://leetcode.com/graphql/'
@@ -8,8 +12,8 @@ notion_url = "https://api.notion.com/v1"
 
 lc_username = "azanulhaque"
 lc_recent_subs_limit = 15
-notion_token = ""
-db_id = ""
+notion_token = os.getenv('personal_notion_token')
+db_id = os.getenv('personal_db_id')
 
 notion_headers = {
         "Accept": "application/json",
