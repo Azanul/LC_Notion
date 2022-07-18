@@ -1,4 +1,1 @@
-deta
-flask
 python-dotenv
-stripe
