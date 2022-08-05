@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 
-load_dotenv(find_dotenv('.test.env'))
+load_dotenv(find_dotenv('test.env'))
 
 next_repitition = {"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
 lc_url = 'https://leetcode.com/graphql/'
