@@ -1,0 +1,6 @@
+h1. LC_Notion
+
+h2. Script that syncs given leetcode account with Notion spaced repetition template
+
+p>. !https://pics.freeicons.io/uploads/icons/png/18579954981556105328-128.png!:https://www.notion.so !https://assets.leetcode.com/static_assets/public/webpack_bundles/images/logo-dark.e99485d9b.svg!:https://www.leetcode.com
+
