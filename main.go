@@ -54,44 +54,79 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+type slugFilter struct {
+	Property string
+	RichText map[string]string
+}
+
+type filter struct {
+	PageSize int
+	Filter   map[string][]slugFilter
+}
+
+type questionProperties struct {
+}
+
+type question struct {
+	Id,
+	Properties questionProperties
+}
+
 func Integrator(w http.ResponseWriter, r *http.Request) {
 	// nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
 
-	// notionToken := os.Getenv("personal_notion_token")
-	// dbId := os.Getenv("personal_db_id")
-
-	// notionHeaders := map[string]string{
-	// 	"Accept":         "application/json",
-	// 	"Notion-Version": "2022-02-22",
-	// 	"Content-Type":   "application/json",
-	// 	"Authorization":  "Bearer" + notion_token,
-	// }
-
 	recentSubmissions := getRecentSubmissions(os.Getenv("LC_USERNAME"))
-	fmt.Println(recentSubmissions)
 
-	// titleSlugs := make(map[string]string)
-	// for i := len(recentSubmissions); i >= 0; i-- {
-	// 	titleSlugs[recentSubmissions[i]["titleSlug"]] = recentSubmissions[i]["timestamp"]
-	// }
+	titleSlugs := make(map[string]string)
+	for i := len(recentSubmissions) - 1; i >= 0; i-- {
+		titleSlugs[recentSubmissions[i]["titleSlug"]] = recentSubmissions[i]["timestamp"]
+	}
 
-	// slugFilter := make([]byte, 0)
-	// for _, ts := range titleSlugs {
-	// 	slugFilter = append(slugFilter, json.Marshal(
-	// 		{
-	// 		"property": "titleSlug",
-	// 		"rich_text": {
-	// 			"equals": ts,
-	// 		},
-	// 	}
-	// 	)
-	// 	}
-	// }
+	slugFilters := []slugFilter{}
+	for _, ts := range titleSlugs {
+		slugFilters = append(slugFilters,
+			slugFilter{
+				Property: "titleSlug",
+				RichText: map[string]string{
+					"equals": ts,
+				},
+			},
+		)
+	}
 
-	// payload := map[string]string{
-	// 	"page_size": 20,
-	// 	"filter":    {"or": slug_filter},
-	// }
+	payload := filter{
+		PageSize: 20,
+		Filter:   map[string][]slugFilter{"or": slugFilters},
+	}
+
+	postBody, _ := json.Marshal(payload)
+	requestBody := bytes.NewBuffer(postBody)
+	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/databases"+os.Getenv("PERSONAL_DB_ID")+"query", requestBody)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	req.Header = http.Header{
+		"Accept":         {"application/json"},
+		"Notion-Version": {"2022-02-22"},
+		"Content-Type":   {"application/json"},
+		"Authorization":  {"Bearer" + os.Getenv("PERSONAL_NOTION_TOKEN")},
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("client: could not read response: %s\n", err)
+		os.Exit(1)
+	}
+	jsonBody := make(map[string]map[string][]map[string]string)
+	_ = json.Unmarshal(body, &jsonBody)
+	fmt.Println(jsonBody)
+	// r = requests.post(f"{notion_url}/databases/{db_id}/query", json=payload, headers=notion_headers)
 
 }
 
