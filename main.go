@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -55,25 +57,110 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 type slugFilter struct {
-	Property string
-	RichText map[string]string
+	Property string            `json:"property"`
+	RichText map[string]string `json:"rich_text"`
 }
 
 type filter struct {
-	PageSize int
-	Filter   map[string][]slugFilter
+	PageSize int                     `json:"page_size"`
+	Filter   map[string][]slugFilter `json:"filter"`
+}
+
+type annotation struct {
+	Bold          bool   `json:"bold,omitempty"`
+	Italic        bool   `json:"italic,omitempty"`
+	Strikethrough bool   `json:"strikethrough,omitempty"`
+	Underline     bool   `json:"underline,omitempty"`
+	Code          bool   `json:"code,omitempty"`
+	Color         string `json:"color,omitempty"`
+}
+
+type richText struct {
+	Type        string            `json:"type,omitempty"`
+	Text        map[string]string `json:"text,omitempty"`
+	Annotations annotation        `json:"annotations,omitempty"`
+	PlainText   string            `json:"plain_text,omitempty"`
+	Href        string            `json:"href,omitempty"`
+}
+
+type textField struct {
+	Id       string     `json:"id,omitempty"`
+	Type     string     `json:"type,omitempty"`
+	RichText []richText `json:"rich_text,omitempty"`
+}
+
+type titleField struct {
+	Id       string     `json:"id,omitempty"`
+	Type     string     `json:"type,omitempty"`
+	RichText []richText `json:"title,omitempty"`
+}
+
+type selectField struct {
+	Id     string            `json:"id,omitempty"`
+	Type   string            `json:"type,omitempty"`
+	Select map[string]string `json:"select,omitempty"`
+}
+
+type dateField struct {
+	Id   string            `json:"id,omitempty"`
+	Type string            `json:"type,omitempty"`
+	Date map[string]string `json:"date,omitempty"`
+}
+
+type formula struct {
+	Type   string `json:"type,omitempty"`
+	Number int    `json:"number,omitempty"`
+}
+
+type formulaField struct {
+	Id      string  `json:"id,omitempty"`
+	Type    string  `json:"type,omitempty"`
+	Formula formula `json:"formula,omitempty"`
+}
+
+type fileField struct {
+	Name     string            `json:"name,omitempty"`
+	Type     string            `json:"type,omitempty"`
+	External map[string]string `json:"external,omitempty"`
+}
+
+type mediaField struct {
+	Id    string      `json:"id,omitempty"`
+	Type  string      `json:"type,omitempty"`
+	Files []fileField `json:"files,omitempty"`
 }
 
 type questionProperties struct {
+	TitleSlug           *textField         `json:"titleSlug,omitempty"`
+	RepetitionGap       *selectField       `json:"Repetition Gap,omitempty"`
+	Level               *selectField       `json:"Level,omitempty"`
+	DaysSinceLastReview *formulaField      `json:"Days Since last review,omitempty"`
+	Created             *map[string]string `json:"Created,omitempty"`
+	Source              *selectField       `json:"Source,omitempty"`
+	LastReviewed        *dateField         `json:"Last Reviewed,omitempty"`
+	Materials           *mediaField        `json:"Materials,omitempty"`
+	Name                *titleField        `json:"Name,omitempty"`
 }
 
 type question struct {
-	Id,
-	Properties questionProperties
+	Id         string             `json:"id"`
+	Properties questionProperties `json:"properties"`
+}
+
+type notionResponse struct {
+	Object  string     `json:"object"`
+	Results []question `json:"results"`
 }
 
 func Integrator(w http.ResponseWriter, r *http.Request) {
-	// nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
+	nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
+
+	notionHeaders := http.Header{
+		"Accept":         {"application/json"},
+		"Notion-Version": {"2022-02-22"},
+		"Content-Type":   {"application/json"},
+		"Authorization":  {"Bearer " + os.Getenv("PERSONAL_NOTION_TOKEN")},
+	}
 
 	recentSubmissions := getRecentSubmissions(os.Getenv("LC_USERNAME"))
 
@@ -83,7 +170,7 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slugFilters := []slugFilter{}
-	for _, ts := range titleSlugs {
+	for ts := range titleSlugs {
 		slugFilters = append(slugFilters,
 			slugFilter{
 				Property: "titleSlug",
@@ -95,23 +182,18 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := filter{
-		PageSize: 20,
+		PageSize: N_RECENT_SUBMISSIONS,
 		Filter:   map[string][]slugFilter{"or": slugFilters},
 	}
 
 	postBody, _ := json.Marshal(payload)
 	requestBody := bytes.NewBuffer(postBody)
-	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/databases"+os.Getenv("PERSONAL_DB_ID")+"query", requestBody)
+	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/databases/"+os.Getenv("PERSONAL_DB_ID")+"/query", requestBody)
 	if err != nil {
 		fmt.Printf("client: could not send request: %s\n", err)
 		os.Exit(1)
 	}
-	req.Header = http.Header{
-		"Accept":         {"application/json"},
-		"Notion-Version": {"2022-02-22"},
-		"Content-Type":   {"application/json"},
-		"Authorization":  {"Bearer" + os.Getenv("PERSONAL_NOTION_TOKEN")},
-	}
+	req.Header = notionHeaders
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Printf("client: could not send request: %s\n", err)
@@ -123,11 +205,45 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("client: could not read response: %s\n", err)
 		os.Exit(1)
 	}
-	jsonBody := make(map[string]map[string][]map[string]string)
-	_ = json.Unmarshal(body, &jsonBody)
-	fmt.Println(jsonBody)
-	// r = requests.post(f"{notion_url}/databases/{db_id}/query", json=payload, headers=notion_headers)
+	toBeUpdated := notionResponse{}
+	_ = json.Unmarshal(body, &toBeUpdated)
 
+	for _, uq := range toBeUpdated.Results {
+		timestamp, err := strconv.ParseInt(titleSlugs[uq.Properties.TitleSlug.RichText[0].PlainText], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		tm := time.Unix(timestamp, 0)
+		reviewDate := tm.Format("2006-01-02")
+		if err != nil {
+			fmt.Printf("client: could not parse timestamp: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(tm, reviewDate)
+
+		if reviewDate != uq.Properties.LastReviewed.Date["start"] {
+			delete(uq.Properties.TitleSlug.RichText[0].Text, "link")
+			updateProperties := map[string]questionProperties{
+				"properties": {
+					LastReviewed: &dateField{
+						Date: map[string]string{
+							"start": reviewDate,
+						},
+					},
+					RepetitionGap: &selectField{
+						Select: map[string]string{
+							"name": nextRepitition[uq.Properties.RepetitionGap.Select["name"]],
+						},
+					},
+				},
+			}
+
+			updateExisting(uq.Id, updateProperties, notionHeaders)
+
+			delete(titleSlugs, uq.Properties.TitleSlug.RichText[0].PlainText)
+		}
+	}
 }
 
 func getRecentSubmissions(lcUsername string) []map[string]string {
@@ -161,4 +277,21 @@ func getRecentSubmissions(lcUsername string) []map[string]string {
 	jsonBody := make(map[string]map[string][]map[string]string)
 	_ = json.Unmarshal(body, &jsonBody)
 	return jsonBody["data"]["recentAcSubmissionList"]
+}
+
+func updateExisting(_id string, properties map[string]questionProperties, header http.Header) {
+	postBody, _ := json.Marshal(properties)
+	requestBody := bytes.NewBuffer(postBody)
+	req, err := http.NewRequest(http.MethodPatch, NOTION_URL+"/pages/"+_id, requestBody)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	req.Header = header
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	resp.Body.Close()
 }
