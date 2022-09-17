@@ -1,4 +1,4 @@
-package api
+package internal
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ type question struct {
 	TitleSlug        string              `json:"titleSlug,omitempty"`
 }
 
-func getRecentSubmissions(lcUsername string, limit int) []map[string]string {
+func GetRecentSubmissions(lcUsername string, limit int) []map[string]string {
 	query := `
 		query recentAcSubmissions($username: String!, $limit: Int!) {
             recentAcSubmissionList(username: $username, limit: $limit) {
@@ -53,7 +53,7 @@ func getRecentSubmissions(lcUsername string, limit int) []map[string]string {
 	return jsonBody["data"]["recentAcSubmissionList"]
 }
 
-func getQuestionBySlug(titleSlug string) question {
+func GetQuestionBySlug(titleSlug string) question {
 	query := `
     query questionData($titleSlug: String!) {
         question(titleSlug: $titleSlug) {

@@ -1,3 +1,6 @@
-lc_username=
-personal_notion_token=
-personal_db_id=
+LC_USERNAME=
+PERSONAL_NOTION_TOKEN=
+PERSONAL_DB_ID=
+
+AUTH_USERNAME=
+AUTH_PASSWORD=

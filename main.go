@@ -1,7 +1,11 @@
 package main
 
-import "github.com/Azanul/lcnotion/api"
+import (
+	update "github.com/Azanul/lcnotion/api"
+	"github.com/joho/godotenv"
+)
 
 func main() {
-	api.Integrator()
+	godotenv.Load("test.env")
+	update.Integrator()
 }
