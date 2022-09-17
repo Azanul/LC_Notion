@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Azanul/lcnotion/api/internal"
+	"github.com/Azanul/lcnotion/internal"
 )
 
 const N_RECENT_SUBMISSIONS = 15
