@@ -18,7 +18,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	basicAuth(Integrator)
 }
 
-func basicAuth(next http.HandlerFunc) http.HandlerFunc {
+func basicAuth(next func()) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if ok {
@@ -31,7 +31,7 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 			passwordMatch := (subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1)
 
 			if usernameMatch && passwordMatch {
-				next.ServeHTTP(w, r)
+				next()
 				return
 			}
 		}
@@ -41,7 +41,7 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
-func Integrator(w http.ResponseWriter, r *http.Request) {
+func Integrator() {
 	nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
 
 	notionHeaders := http.Header{
