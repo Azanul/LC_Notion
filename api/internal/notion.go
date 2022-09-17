@@ -1,4 +1,4 @@
-package handler
+package internal
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 
 const NOTION_URL = "https://api.notion.com/v1"
 
-type annotation struct {
+type Annotation struct {
 	Bold          bool   `json:"bold,omitempty"`
 	Italic        bool   `json:"italic,omitempty"`
 	Strikethrough bool   `json:"strikethrough,omitempty"`
@@ -20,33 +20,33 @@ type annotation struct {
 	Color         string `json:"color,omitempty"`
 }
 
-type richText struct {
+type RichText struct {
 	Type        string            `json:"type,omitempty"`
 	Text        map[string]string `json:"text,omitempty"`
-	Annotations annotation        `json:"annotations,omitempty"`
+	Annotations Annotation        `json:"annotations,omitempty"`
 	PlainText   string            `json:"plain_text,omitempty"`
 	Href        string            `json:"href,omitempty"`
 }
 
-type textField struct {
+type TextField struct {
 	Id       string     `json:"id,omitempty"`
 	Type     string     `json:"type,omitempty"`
-	RichText []richText `json:"rich_text,omitempty"`
+	RichText []RichText `json:"rich_text,omitempty"`
 }
 
-type titleField struct {
+type TitleField struct {
 	Id    string     `json:"id,omitempty"`
 	Type  string     `json:"type,omitempty"`
-	Title []richText `json:"title,omitempty"`
+	Title []RichText `json:"title,omitempty"`
 }
 
-type selectField struct {
+type SelectField struct {
 	Id     string            `json:"id,omitempty"`
 	Type   string            `json:"type,omitempty"`
 	Select map[string]string `json:"select,omitempty"`
 }
 
-type dateField struct {
+type DateField struct {
 	Id   string            `json:"id,omitempty"`
 	Type string            `json:"type,omitempty"`
 	Date map[string]string `json:"date,omitempty"`
@@ -63,33 +63,33 @@ type formulaField struct {
 	Formula formula `json:"formula,omitempty"`
 }
 
-type fileField struct {
+type FileField struct {
 	Name     string            `json:"name,omitempty"`
 	Type     string            `json:"type,omitempty"`
 	External map[string]string `json:"external,omitempty"`
 }
 
-type mediaField struct {
+type MediaField struct {
 	Id    string      `json:"id,omitempty"`
 	Type  string      `json:"type,omitempty"`
-	Files []fileField `json:"files,omitempty"`
+	Files []FileField `json:"files,omitempty"`
 }
 
-type questionProperties struct {
-	TitleSlug           *textField         `json:"titleSlug,omitempty"`
-	RepetitionGap       *selectField       `json:"Repetition Gap,omitempty"`
-	Level               *selectField       `json:"Level,omitempty"`
+type QuestionProperties struct {
+	TitleSlug           *TextField         `json:"titleSlug,omitempty"`
+	RepetitionGap       *SelectField       `json:"Repetition Gap,omitempty"`
+	Level               *SelectField       `json:"Level,omitempty"`
 	DaysSinceLastReview *formulaField      `json:"Days Since last review,omitempty"`
 	Created             *map[string]string `json:"Created,omitempty"`
-	Source              *selectField       `json:"Source,omitempty"`
-	LastReviewed        *dateField         `json:"Last Reviewed,omitempty"`
-	Materials           *mediaField        `json:"Materials,omitempty"`
-	Name                *titleField        `json:"Name,omitempty"`
+	Source              *SelectField       `json:"Source,omitempty"`
+	LastReviewed        *DateField         `json:"Last Reviewed,omitempty"`
+	Materials           *MediaField        `json:"Materials,omitempty"`
+	Name                *TitleField        `json:"Name,omitempty"`
 }
 
 type questionEntry struct {
 	Id         string             `json:"id"`
-	Properties questionProperties `json:"properties"`
+	Properties QuestionProperties `json:"properties"`
 }
 
 type notionResponse struct {
@@ -97,20 +97,20 @@ type notionResponse struct {
 	Results []questionEntry `json:"results"`
 }
 
-type slugFilter struct {
+type SlugFilter struct {
 	Property string            `json:"property"`
 	RichText map[string]string `json:"rich_text"`
 }
 
 type filter struct {
 	PageSize int                     `json:"page_size"`
-	Filter   map[string][]slugFilter `json:"filter"`
+	Filter   map[string][]SlugFilter `json:"filter"`
 }
 
-func createNewEntry(properties questionProperties, header http.Header) {
+func CreateNewEntry(properties QuestionProperties, header http.Header) {
 	payload := struct {
 		Parent     map[string]string  `json:"parent"`
-		Properties questionProperties `json:"properties"`
+		Properties QuestionProperties `json:"properties"`
 	}{
 		Parent: map[string]string{
 			"database_id": os.Getenv("PERSONAL_DB_ID"),
@@ -134,10 +134,10 @@ func createNewEntry(properties questionProperties, header http.Header) {
 	resp.Body.Close()
 }
 
-func getEntriesBySlug(slugFilters []slugFilter, header http.Header, pageSize int) notionResponse {
+func GetEntriesByFilter(slugFilters []SlugFilter, header http.Header, pageSize int) notionResponse {
 	payload := filter{
-		PageSize: N_RECENT_SUBMISSIONS,
-		Filter:   map[string][]slugFilter{"or": slugFilters},
+		PageSize: pageSize,
+		Filter:   map[string][]SlugFilter{"or": slugFilters},
 	}
 
 	postBody, _ := json.Marshal(payload)
@@ -164,7 +164,7 @@ func getEntriesBySlug(slugFilters []slugFilter, header http.Header, pageSize int
 	return toBeUpdated
 }
 
-func updateExistingEntry(_id string, properties map[string]questionProperties, header http.Header) {
+func UpdateExistingEntry(_id string, properties map[string]QuestionProperties, header http.Header) {
 	postBody, _ := json.Marshal(properties)
 	requestBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest(http.MethodPatch, NOTION_URL+"/pages/"+_id, requestBody)

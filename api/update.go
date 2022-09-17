@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Azanul/lcnotion/api/internal"
 )
 
 const N_RECENT_SUBMISSIONS = 15
@@ -48,17 +50,17 @@ func Integrator() {
 		"Authorization":  {"Bearer " + os.Getenv("PERSONAL_NOTION_TOKEN")},
 	}
 
-	recentSubmissions := getRecentSubmissions(os.Getenv("LC_USERNAME"), N_RECENT_SUBMISSIONS)
+	recentSubmissions := internal.GetRecentSubmissions(os.Getenv("LC_USERNAME"), N_RECENT_SUBMISSIONS)
 
 	titleSlugs := make(map[string]string)
 	for i := len(recentSubmissions) - 1; i >= 0; i-- {
 		titleSlugs[recentSubmissions[i]["titleSlug"]] = recentSubmissions[i]["timestamp"]
 	}
 
-	slugFilters := []slugFilter{}
+	slugFilters := []internal.SlugFilter{}
 	for ts := range titleSlugs {
 		slugFilters = append(slugFilters,
-			slugFilter{
+			internal.SlugFilter{
 				Property: "titleSlug",
 				RichText: map[string]string{
 					"equals": ts,
@@ -67,21 +69,20 @@ func Integrator() {
 		)
 	}
 
-	matchingEntries := getEntriesBySlug(slugFilters, notionHeaders, N_RECENT_SUBMISSIONS)
+	matchingEntries := internal.GetEntriesByFilter(slugFilters, notionHeaders, N_RECENT_SUBMISSIONS)
 
 	for _, uq := range matchingEntries.Results {
 		reviewDate := timestampToFormat(titleSlugs[uq.Properties.TitleSlug.RichText[0].PlainText], "2006-01-02")
 
 		if reviewDate != uq.Properties.LastReviewed.Date["start"] {
-			delete(uq.Properties.TitleSlug.RichText[0].Text, "link")
-			updateProperties := map[string]questionProperties{
+			updateProperties := map[string]internal.QuestionProperties{
 				"properties": {
-					LastReviewed: &dateField{
+					LastReviewed: &internal.DateField{
 						Date: map[string]string{
 							"start": reviewDate,
 						},
 					},
-					RepetitionGap: &selectField{
+					RepetitionGap: &internal.SelectField{
 						Select: map[string]string{
 							"name": nextRepitition[uq.Properties.RepetitionGap.Select["name"]],
 						},
@@ -89,24 +90,24 @@ func Integrator() {
 				},
 			}
 
-			updateExistingEntry(uq.Id, updateProperties, notionHeaders)
+			internal.UpdateExistingEntry(uq.Id, updateProperties, notionHeaders)
 		}
 
 		delete(titleSlugs, uq.Properties.TitleSlug.RichText[0].PlainText)
 	}
 
 	for slug, timestamp := range titleSlugs {
-		quesJson := getQuestionBySlug(slug)
+		quesJson := internal.GetQuestionBySlug(slug)
 
-		newProperties := questionProperties{
-			TitleSlug: &textField{
-				RichText: []richText{
+		newProperties := internal.QuestionProperties{
+			TitleSlug: &internal.TextField{
+				RichText: []internal.RichText{
 					{
 						Type: "text",
 						Text: map[string]string{
 							"content": slug,
 						},
-						Annotations: annotation{
+						Annotations: internal.Annotation{
 							Bold:          false,
 							Italic:        false,
 							Strikethrough: false,
@@ -118,28 +119,28 @@ func Integrator() {
 					},
 				},
 			},
-			LastReviewed: &dateField{
+			LastReviewed: &internal.DateField{
 				Date: map[string]string{
 					"start": timestampToFormat(timestamp, "2006-01-02"),
 				},
 			},
-			RepetitionGap: &selectField{
+			RepetitionGap: &internal.SelectField{
 				Select: map[string]string{
 					"name": "1",
 				},
 			},
-			Level: &selectField{
+			Level: &internal.SelectField{
 				Select: map[string]string{
 					"name": quesJson.Difficulty,
 				},
 			},
-			Source: &selectField{
+			Source: &internal.SelectField{
 				Select: map[string]string{
 					"name": "Website",
 				},
 			},
-			Materials: &mediaField{
-				Files: []fileField{
+			Materials: &internal.MediaField{
+				Files: []internal.FileField{
 					{
 						Name: "https://leetcode.com/problems/" + slug + "/",
 						Type: "external",
@@ -149,8 +150,8 @@ func Integrator() {
 					},
 				},
 			},
-			Name: &titleField{
-				Title: []richText{
+			Name: &internal.TitleField{
+				Title: []internal.RichText{
 					{
 						Text: map[string]string{
 							"content": quesJson.QuestionId + ". " + quesJson.Title,
@@ -160,7 +161,7 @@ func Integrator() {
 			},
 		}
 
-		createNewEntry(newProperties, notionHeaders)
+		internal.CreateNewEntry(newProperties, notionHeaders)
 	}
 }
 
