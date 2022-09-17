@@ -161,27 +161,6 @@ type question struct {
 	TitleSlug        string              `json:"titleSlug,omitempty"`
 }
 
-// similarQuestions:[
-// 	{
-// 		"title": "Peak Index in a Mountain Array",
-// 		"titleSlug": "peak-index-in-a-mountain-array",
-// 		"difficulty": "Medium", "translatedTitle": null
-// 	}, {
-// 		"title": "Find a Peak Element II",
-// 		 "titleSlug": "find-a-peak-element-ii",
-// 		 "difficulty": "Medium", "translatedTitle": null
-// 	}, {
-// 		"title": "Pour Water Between Buckets to Make Water Levels Equal",
-// 		"titleSlug": "pour-water-between-buckets-to-make-water-levels-equal",
-// 		"difficulty": "Medium", "translatedTitle": null
-// 	}, {
-// 		"title": "Count Hills and Valleys in an Array",
-// 		"titleSlug": "count-hills-and-valleys-in-an-array",
-// 		"difficulty": "Easy", "translatedTitle": null
-// 	}]
-
-// map[question:map[difficulty:Medium questionId:695 similarQuestions:[{"title": "Number of Islands", "titleSlug": "number-of-islands", "difficulty": "Medium", "translatedTitle": null}, {"title": "Island Perimeter", "titleSlug": "island-perimeter", "difficulty": "Easy", "translatedTitle": null}, {"title": "Largest Submatrix With Rearrangements", "titleSlug": "largest-submatrix-with-rearrangements", "difficulty": "Medium", "translatedTitle": null}, {"title": "Detonate the Maximum Bombs", "titleSlug": "detonate-the-maximum-bombs", "difficulty": "Medium", "translatedTitle": null}] title:Max Area of Island topicTags:[map[name:Array] map[name:Depth-First Search] map[name:Breadth-First Search] map[name:Union Find] map[name:Matrix]]]]
-
 func Integrator(w http.ResponseWriter, r *http.Request) {
 	nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
 
@@ -211,39 +190,10 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	payload := filter{
-		PageSize: N_RECENT_SUBMISSIONS,
-		Filter:   map[string][]slugFilter{"or": slugFilters},
-	}
+	matchingEntries := getEntriesBySlug(slugFilters, notionHeaders, N_RECENT_SUBMISSIONS)
 
-	postBody, _ := json.Marshal(payload)
-	requestBody := bytes.NewBuffer(postBody)
-	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/databases/"+os.Getenv("PERSONAL_DB_ID")+"/query", requestBody)
-	if err != nil {
-		fmt.Printf("client: could not send request: %s\n", err)
-		os.Exit(1)
-	}
-	req.Header = notionHeaders
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Printf("client: could not send request: %s\n", err)
-		os.Exit(1)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("client: could not read response: %s\n", err)
-		os.Exit(1)
-	}
-	toBeUpdated := notionResponse{}
-	_ = json.Unmarshal(body, &toBeUpdated)
-
-	for _, uq := range toBeUpdated.Results {
+	for _, uq := range matchingEntries.Results {
 		reviewDate := timestampToFormat(titleSlugs[uq.Properties.TitleSlug.RichText[0].PlainText], "2006-01-02")
-		if err != nil {
-			fmt.Printf("client: could not parse timestamp: %s\n", err)
-			os.Exit(1)
-		}
 
 		if reviewDate != uq.Properties.LastReviewed.Date["start"] {
 			delete(uq.Properties.TitleSlug.RichText[0].Text, "link")
@@ -459,4 +409,34 @@ func timestampToFormat(stamp string, format string) string {
 	}
 	tm := time.Unix(timestamp, 0)
 	return tm.Format(format)
+}
+
+func getEntriesBySlug(slugFilters []slugFilter, header http.Header, pageSize int) notionResponse {
+	payload := filter{
+		PageSize: N_RECENT_SUBMISSIONS,
+		Filter:   map[string][]slugFilter{"or": slugFilters},
+	}
+
+	postBody, _ := json.Marshal(payload)
+	requestBody := bytes.NewBuffer(postBody)
+	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/databases/"+os.Getenv("PERSONAL_DB_ID")+"/query", requestBody)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	req.Header = header
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("client: could not read response: %s\n", err)
+		os.Exit(1)
+	}
+	toBeUpdated := notionResponse{}
+	_ = json.Unmarshal(body, &toBeUpdated)
+	return toBeUpdated
 }
