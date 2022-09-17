@@ -1,4 +1,4 @@
-package api
+package update
 
 import (
 	"crypto/sha256"
@@ -11,7 +11,7 @@ import (
 
 const N_RECENT_SUBMISSIONS = 15
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func Update(w http.ResponseWriter, r *http.Request) {
 	basicAuth(Integrator)
 }
 
