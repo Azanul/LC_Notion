@@ -1,4 +1,3 @@
 @echo off
 
-pip install -r requirements.txt
-python3 integrator.py
+go run api/update.go

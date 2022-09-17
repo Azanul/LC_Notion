@@ -175,3 +175,7 @@ func timestampToFormat(stamp string, format string) string {
 	tm := time.Unix(timestamp, 0)
 	return tm.Format(format)
 }
+
+func main() {
+	Integrator()
+}
