@@ -1,4 +1,4 @@
-module "github.com/Azanul/lcnotion"
+module github.com/Azanul/lcnotion
 
 go 1.18
 
