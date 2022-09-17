@@ -7,14 +7,11 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 const N_RECENT_SUBMISSIONS = 15
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	godotenv.Load("test.env")
 	basicAuth(Integrator)
 }
 
