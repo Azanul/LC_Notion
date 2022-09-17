@@ -14,7 +14,7 @@ import (
 const N_RECENT_SUBMISSIONS = 15
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	basicAuth(Integrator)
+	basicAuth(Integrator).ServeHTTP(w, r)
 }
 
 func basicAuth(next func()) http.HandlerFunc {
