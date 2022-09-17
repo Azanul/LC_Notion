@@ -90,9 +90,9 @@ type textField struct {
 }
 
 type titleField struct {
-	Id       string     `json:"id,omitempty"`
-	Type     string     `json:"type,omitempty"`
-	RichText []richText `json:"title,omitempty"`
+	Id    string     `json:"id,omitempty"`
+	Type  string     `json:"type,omitempty"`
+	Title []richText `json:"title,omitempty"`
 }
 
 type selectField struct {
@@ -142,15 +142,45 @@ type questionProperties struct {
 	Name                *titleField        `json:"Name,omitempty"`
 }
 
-type question struct {
+type questionEntry struct {
 	Id         string             `json:"id"`
 	Properties questionProperties `json:"properties"`
 }
 
 type notionResponse struct {
-	Object  string     `json:"object"`
-	Results []question `json:"results"`
+	Object  string          `json:"object"`
+	Results []questionEntry `json:"results"`
 }
+
+type question struct {
+	Difficulty       string              `json:"difficulty,omitempty"`
+	QuestionId       string              `json:"questionId,omitempty"`
+	SimilarQuestions string              `json:"similarQuestions,omitempty"`
+	Title            string              `json:"title,omitempty"`
+	TopicTags        []map[string]string `json:"topicTags,omitempty"`
+	TitleSlug        string              `json:"titleSlug,omitempty"`
+}
+
+// similarQuestions:[
+// 	{
+// 		"title": "Peak Index in a Mountain Array",
+// 		"titleSlug": "peak-index-in-a-mountain-array",
+// 		"difficulty": "Medium", "translatedTitle": null
+// 	}, {
+// 		"title": "Find a Peak Element II",
+// 		 "titleSlug": "find-a-peak-element-ii",
+// 		 "difficulty": "Medium", "translatedTitle": null
+// 	}, {
+// 		"title": "Pour Water Between Buckets to Make Water Levels Equal",
+// 		"titleSlug": "pour-water-between-buckets-to-make-water-levels-equal",
+// 		"difficulty": "Medium", "translatedTitle": null
+// 	}, {
+// 		"title": "Count Hills and Valleys in an Array",
+// 		"titleSlug": "count-hills-and-valleys-in-an-array",
+// 		"difficulty": "Easy", "translatedTitle": null
+// 	}]
+
+// map[question:map[difficulty:Medium questionId:695 similarQuestions:[{"title": "Number of Islands", "titleSlug": "number-of-islands", "difficulty": "Medium", "translatedTitle": null}, {"title": "Island Perimeter", "titleSlug": "island-perimeter", "difficulty": "Easy", "translatedTitle": null}, {"title": "Largest Submatrix With Rearrangements", "titleSlug": "largest-submatrix-with-rearrangements", "difficulty": "Medium", "translatedTitle": null}, {"title": "Detonate the Maximum Bombs", "titleSlug": "detonate-the-maximum-bombs", "difficulty": "Medium", "translatedTitle": null}] title:Max Area of Island topicTags:[map[name:Array] map[name:Depth-First Search] map[name:Breadth-First Search] map[name:Union Find] map[name:Matrix]]]]
 
 func Integrator(w http.ResponseWriter, r *http.Request) {
 	nextRepitition := map[string]string{"1": "7", "7": "30", "30": "90", "90": "180", "180": "365", "365": "Done"}
@@ -209,18 +239,11 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 	_ = json.Unmarshal(body, &toBeUpdated)
 
 	for _, uq := range toBeUpdated.Results {
-		timestamp, err := strconv.ParseInt(titleSlugs[uq.Properties.TitleSlug.RichText[0].PlainText], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		tm := time.Unix(timestamp, 0)
-		reviewDate := tm.Format("2006-01-02")
+		reviewDate := timestampToFormat(titleSlugs[uq.Properties.TitleSlug.RichText[0].PlainText], "2006-01-02")
 		if err != nil {
 			fmt.Printf("client: could not parse timestamp: %s\n", err)
 			os.Exit(1)
 		}
-
-		fmt.Println(tm, reviewDate)
 
 		if reviewDate != uq.Properties.LastReviewed.Date["start"] {
 			delete(uq.Properties.TitleSlug.RichText[0].Text, "link")
@@ -239,10 +262,78 @@ func Integrator(w http.ResponseWriter, r *http.Request) {
 				},
 			}
 
-			updateExisting(uq.Id, updateProperties, notionHeaders)
-
-			delete(titleSlugs, uq.Properties.TitleSlug.RichText[0].PlainText)
+			updateExistingEntry(uq.Id, updateProperties, notionHeaders)
 		}
+
+		delete(titleSlugs, uq.Properties.TitleSlug.RichText[0].PlainText)
+	}
+
+	for slug, timestamp := range titleSlugs {
+		quesJson := getQuestionBySlug(slug)
+
+		newProperties := questionProperties{
+			TitleSlug: &textField{
+				RichText: []richText{
+					{
+						Type: "text",
+						Text: map[string]string{
+							"content": slug,
+						},
+						Annotations: annotation{
+							Bold:          false,
+							Italic:        false,
+							Strikethrough: false,
+							Underline:     false,
+							Code:          false,
+							Color:         "default",
+						},
+						PlainText: slug,
+					},
+				},
+			},
+			LastReviewed: &dateField{
+				Date: map[string]string{
+					"start": timestampToFormat(timestamp, "2006-01-02"),
+				},
+			},
+			RepetitionGap: &selectField{
+				Select: map[string]string{
+					"name": "1",
+				},
+			},
+			Level: &selectField{
+				Select: map[string]string{
+					"name": quesJson.Difficulty,
+				},
+			},
+			Source: &selectField{
+				Select: map[string]string{
+					"name": "Website",
+				},
+			},
+			Materials: &mediaField{
+				Files: []fileField{
+					{
+						Name: "https://leetcode.com/problems/" + slug + "/",
+						Type: "external",
+						External: map[string]string{
+							"url": "https://leetcode.com/problems/" + slug + "/",
+						},
+					},
+				},
+			},
+			Name: &titleField{
+				Title: []richText{
+					{
+						Text: map[string]string{
+							"content": quesJson.QuestionId + ". " + quesJson.Title,
+						},
+					},
+				},
+			},
+		}
+
+		createNewEntry(newProperties, notionHeaders)
 	}
 }
 
@@ -279,7 +370,7 @@ func getRecentSubmissions(lcUsername string) []map[string]string {
 	return jsonBody["data"]["recentAcSubmissionList"]
 }
 
-func updateExisting(_id string, properties map[string]questionProperties, header http.Header) {
+func updateExistingEntry(_id string, properties map[string]questionProperties, header http.Header) {
 	postBody, _ := json.Marshal(properties)
 	requestBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest(http.MethodPatch, NOTION_URL+"/pages/"+_id, requestBody)
@@ -294,4 +385,78 @@ func updateExisting(_id string, properties map[string]questionProperties, header
 		os.Exit(1)
 	}
 	resp.Body.Close()
+}
+
+func getQuestionBySlug(titleSlug string) question {
+	query := `
+    query questionData($titleSlug: String!) {
+        question(titleSlug: $titleSlug) {
+            questionId
+            title
+            difficulty
+            similarQuestions
+            topicTags {
+                name
+            }
+        }
+    }
+    `
+
+	variables := fmt.Sprintf(`{"titleSlug": "%s"}`, titleSlug)
+	postBody, _ := json.Marshal(map[string]string{
+		"query":     query,
+		"variables": variables,
+	})
+	requestBody := bytes.NewBuffer(postBody)
+	resp, err := http.Post(LC_URL, "application/json", requestBody)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("client: could not read response: %s\n", err)
+		os.Exit(1)
+	}
+	jsonBody := make(map[string]map[string]question)
+	_ = json.Unmarshal(body, &jsonBody)
+	return jsonBody["data"]["question"]
+}
+
+func createNewEntry(properties questionProperties, header http.Header) {
+	payload := struct {
+		Parent     map[string]string  `json:"parent"`
+		Properties questionProperties `json:"properties"`
+	}{
+		Parent: map[string]string{
+			"database_id": os.Getenv("PERSONAL_DB_ID"),
+		},
+		Properties: properties,
+	}
+	fmt.Println(payload)
+	postBody, _ := json.Marshal(payload)
+	requestBody := bytes.NewBuffer(postBody)
+	req, err := http.NewRequest(http.MethodPost, NOTION_URL+"/pages/", requestBody)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	req.Header = header
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("client: could not send request: %s\n", err)
+		os.Exit(1)
+	}
+	resp.Body.Close()
+}
+
+func timestampToFormat(stamp string, format string) string {
+	timestamp, err := strconv.ParseInt(stamp, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	tm := time.Unix(timestamp, 0)
+	return tm.Format(format)
 }
