@@ -92,7 +92,7 @@ type questionEntry struct {
 	Properties QuestionProperties `json:"properties"`
 }
 
-type notionResponse struct {
+type NotionResponse struct {
 	Object  string          `json:"object"`
 	Results []questionEntry `json:"results"`
 }
@@ -134,7 +134,7 @@ func CreateNewEntry(properties QuestionProperties, header http.Header) {
 	resp.Body.Close()
 }
 
-func GetEntriesByFilter(slugFilters []SlugFilter, header http.Header, pageSize int) notionResponse {
+func GetEntriesByFilter(slugFilters []SlugFilter, header http.Header, pageSize int) NotionResponse {
 	payload := filter{
 		PageSize: pageSize,
 		Filter:   map[string][]SlugFilter{"or": slugFilters},
@@ -159,7 +159,7 @@ func GetEntriesByFilter(slugFilters []SlugFilter, header http.Header, pageSize i
 		fmt.Printf("client: could not read response: %s\n", err)
 		os.Exit(1)
 	}
-	toBeUpdated := notionResponse{}
+	toBeUpdated := NotionResponse{}
 	_ = json.Unmarshal(body, &toBeUpdated)
 	return toBeUpdated
 }

@@ -11,7 +11,7 @@ import (
 
 const LC_URL = "https://leetcode.com/graphql/"
 
-type question struct {
+type Question struct {
 	Difficulty       string              `json:"difficulty,omitempty"`
 	QuestionId       string              `json:"questionId,omitempty"`
 	SimilarQuestions string              `json:"similarQuestions,omitempty"`
@@ -53,7 +53,7 @@ func GetRecentSubmissions(lcUsername string, limit int) []map[string]string {
 	return jsonBody["data"]["recentAcSubmissionList"]
 }
 
-func GetQuestionBySlug(titleSlug string) question {
+func GetQuestionBySlug(titleSlug string) Question {
 	query := `
     query questionData($titleSlug: String!) {
         question(titleSlug: $titleSlug) {
@@ -86,7 +86,7 @@ func GetQuestionBySlug(titleSlug string) question {
 		fmt.Printf("client: could not read response: %s\n", err)
 		os.Exit(1)
 	}
-	jsonBody := make(map[string]map[string]question)
+	jsonBody := make(map[string]map[string]Question)
 	_ = json.Unmarshal(body, &jsonBody)
 	return jsonBody["data"]["question"]
 }
